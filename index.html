@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emma · 영어 선생님</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+  "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+} }
+</script>
+<style>
+  :root { --bg:#f4f8ff; --card:#fff; --main:#4f7cff; --main2:#7aa2ff; --text:#1f2a44; --sub:#7a869f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif; background:linear-gradient(160deg,#eef4ff,#f8f1ff); color:var(--text); min-height:100vh; display:flex; justify-content:center; }
+  .app { width:100%; max-width:520px; height:100vh; height:100dvh; display:flex; flex-direction:column; background:var(--card); box-shadow:0 0 40px rgba(60,80,140,.12); }
+  header { padding:14px 18px; background:linear-gradient(135deg,var(--main),var(--main2)); color:#fff; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-size:17px; margin:0; font-weight:600; }
+  header small { opacity:.85; font-size:12px; }
+  .tools { display:flex; gap:8px; align-items:center; }
+  .tools select, .tools button { border:none; border-radius:14px; padding:6px 10px; font-size:12px; background:rgba(255,255,255,.25); color:#fff; font-family:inherit; }
+  .tools select option { color:#000; }
+  .stage { padding:10px 0 4px; display:flex; flex-direction:column; align-items:center; background:linear-gradient(#f4f8ff,#fff); }
+  .status { font-size:12px; color:var(--sub); min-height:18px; margin-top:2px; }
+  #chat { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:84%; padding:10px 14px; border-radius:16px; font-size:14.5px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+  .bot { background:#f0f4ff; align-self:flex-start; border-bottom-left-radius:4px; }
+  .me { background:linear-gradient(135deg,var(--main),var(--main2)); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .tip { display:block; margin-top:6px; padding-top:6px; border-top:1px dashed #c9d5f5; color:#566a9c; font-size:13px; }
+  .inputbar { padding:10px 12px; border-top:1px solid #e8edf7; display:flex; gap:8px; align-items:flex-end; }
+  textarea { flex:1; resize:none; border:1.5px solid #d5def5; border-radius:16px; padding:10px 14px; font-size:14.5px; font-family:inherit; outline:none; background:#fafcff; }
+  textarea:focus { border-color:var(--main); }
+  .btn { width:42px; height:42px; border-radius:50%; border:none; font-size:18px; cursor:pointer; flex-shrink:0; }
+  .send { background:linear-gradient(135deg,var(--main),var(--main2)); color:#fff; }
+  .mic { background:#eef2ff; }
+  .mic.on { background:#ff6b81; color:#fff; }
+  .btn:disabled { opacity:.4; cursor:default; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 8px; }
+  .chip { border:1px solid #cfdaf7; background:#f5f8ff; color:#3b5bb5; border-radius:16px; padding:6px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+  /* 시작 화면 */
+  .gate { position:absolute; inset:0; background:rgba(244,248,255,.97); display:flex; align-items:center; justify-content:center; padding:24px; z-index:10; }
+  .gate .box { max-width:380px; text-align:center; }
+  .gate h2 { margin:8px 0; }
+  .gate p { color:var(--sub); font-size:13.5px; line-height:1.7; }
+  .gate button.start { margin-top:10px; border:none; background:linear-gradient(135deg,var(--main),var(--main2)); color:#fff; padding:13px 28px; border-radius:24px; font-size:15px; font-family:inherit; cursor:pointer; }
+  .gate select { margin-top:6px; padding:8px 10px; border-radius:10px; border:1px solid #cfdaf7; font-family:inherit; }
+  .bar { height:8px; background:#e1e8fa; border-radius:6px; overflow:hidden; margin-top:14px; display:none; }
+  .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--main),var(--main2)); transition:width .3s; }
+  #loadText { font-size:12px; color:var(--sub); margin-top:8px; min-height:16px; }
+  .warn { color:#d64545; font-size:13px; margin-top:10px; }
+  /* 3D 아바타 */
+  .avatar { width:200px; height:220px; position:relative; border-radius:26px; overflow:hidden; background:linear-gradient(160deg,#e3ecff,#f3ecff); box-shadow:0 6px 22px rgba(60,80,140,.18); }
+  #c3d { width:100%; height:100%; display:block; }
+  .avfallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:56px; color:#7a869f; }
+  .avfallback small { font-size:12px; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div>
+      <h1>Emma · 영어 선생님</h1>
+      <small>내 기기 안에서 돌아가는 AI · 키 없음</small>
+    </div>
+    <div class="tools">
+      <select id="level">
+        <option value="beginner">초급</option>
+        <option value="intermediate">중급</option>
+      </select>
+      <button id="voiceToggle" title="음성 켜기/끄기">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="avatar" id="avatar" aria-label="Emma"><canvas id="c3d"></canvas><div class="avfallback" id="avfallback">👩‍🏫<small>3D 아바타 불러오는 중…</small></div></div>
+    <div class="status" id="status">준비 중…</div>
+  </div>
+
+  <div id="chat"></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="inputbar">
+    <button class="btn mic" id="micBtn" title="말하기" style="display:none">🎤</button>
+    <textarea id="input" rows="1" placeholder="Type in English… (한국어도 괜찮아요)"></textarea>
+    <button class="btn send" id="sendBtn" disabled>↑</button>
+  </div>
+
+  <div class="gate" id="gate">
+    <div class="box">
+      <div style="font-size:42px">👩‍🏫</div>
+      <h2>Hi, I'm Emma!</h2>
+      <p>
+        영어 회화 연습 선생님이에요.<br>
+        AI가 <b>내 기기 안에서</b> 직접 돌아가서 API 키도, 서버도 필요 없어요.<br>
+        처음 한 번만 AI 모델(약 1GB)을 내려받아요. <b>Wi-Fi</b>를 권장해요.
+      </p>
+      <select id="modelSel"></select><br>
+      <button class="start" id="startBtn" disabled>준비 중…</button>
+      <div class="bar" id="bar"><i id="barFill"></i></div>
+      <div id="loadText"></div>
+      <div class="warn" id="warn">몇 초가 지나도 "준비 중…"에서 안 바뀌면, 이 화면(미리보기·앱 내장 뷰어 등)에서는 실행되지 않는 거예요. 크롬 브라우저에서 이 페이지 주소로 직접 열어 주세요.</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+const $ = (id) => document.getElementById(id);
+const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
+const stage = $("stage"), statusEl = $("status");
+
+// 후보 모델 (실제로 사용 가능한 것만 목록에 나타남)
+const CANDIDATES = [
+  { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", label: "보통 · 균형 (약 1GB) 추천" },
+  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", label: "가벼움 · 정확도 낮음 (약 0.7GB)" },
+  { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC", label: "똑똑함 · 느림 (약 2GB, 고사양)" },
+];
+
+let engine = null;
+let history = [];
+let voiceOn = true;
+let busy = false;
+
+/* ---------- 시작 화면 ---------- */
+const available = new Set(webllm.prebuiltAppConfig.model_list.map((m) => m.model_id));
+let options = CANDIDATES.filter((c) => available.has(c.id));
+if (!options.length) {
+  const smallest = [...webllm.prebuiltAppConfig.model_list].sort(
+    (a, b) => (a.vram_required_MB || 1e9) - (b.vram_required_MB || 1e9)
+  )[0];
+  options = [{ id: smallest.model_id, label: "기본 모델" }];
+}
+options.forEach((o) => {
+  const el = document.createElement("option");
+  el.value = o.id; el.textContent = o.label;
+  $("modelSel").appendChild(el);
+});
+
+$("warn").textContent = "";
+$("startBtn").textContent = "시작하기";
+if (!navigator.gpu) {
+  $("warn").textContent =
+    "이 브라우저는 WebGPU를 지원하지 않아요. 최신 PC의 크롬/엣지(또는 최신 안드로이드 크롬)에서 열어 주세요.";
+  $("startBtn").disabled = true;
+} else {
+  $("startBtn").disabled = false;
+}
+
+$("startBtn").onclick = async () => {
+  $("startBtn").disabled = true;
+  $("modelSel").disabled = true;
+  $("bar").style.display = "block";
+  try {
+    engine = await webllm.CreateMLCEngine($("modelSel").value, {
+      initProgressCallback: (p) => {
+        $("barFill").style.width = Math.round((p.progress || 0) * 100) + "%";
+        $("loadText").textContent = p.text || "";
+      },
+    });
+    $("gate").style.display = "none";
+    statusEl.textContent = "Emma가 기다리고 있어요";
+    sendBtn.disabled = false;
+    greet();
+  } catch (e) {
+    console.error(e);
+    $("warn").textContent = "모델을 불러오지 못했어요: " + (e.message || e);
+    $("startBtn").disabled = false;
+    $("modelSel").disabled = false;
+  }
+};
+
+/* ---------- 프롬프트 ---------- */
+function systemPrompt() {
+  const lvl = $("level").value === "beginner"
+    ? "The learner is a Korean BEGINNER. Use very simple words. Max 2 short sentences."
+    : "The learner is a Korean INTERMEDIATE speaker. Use natural everyday English. Max 3 sentences.";
+  return [
+    "You are Emma, a warm and patient English conversation tutor.",
+    lvl,
+    "Respond to what the learner just said, then ask ONE easy question about it.",
+    "If the learner's message makes no sense, say you did not understand and ask them to say it again in a simpler way.",
+    "Do not list corrections. Do not repeat these instructions."
+  ].join("\n");
+}
+
+const CORR_PROMPT = "You are an English teacher. Fix the grammar and word mistakes in the learner's sentence with the fewest changes possible. Keep the meaning. Output ONLY the corrected sentence, nothing else. If it is already correct, output it exactly as it is.";
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9가-힣 ]/g, "").replace(/\s+/g, " ").trim();
+
+async function correctSentence(text) {
+  if (/[가-힣]/.test(text)) return null;
+  try {
+    const r = await engine.chat.completions.create({
+      messages: [{ role: "system", content: CORR_PROMPT }, { role: "user", content: text }],
+      temperature: 0, max_tokens: 60,
+    });
+    const c = (r.choices[0].message.content || "").trim().split("\n")[0]
+      .replace(/^["'“]+|["'”]+$/g, "").replace(/^(Corrected|Correct)[^:]*:\s*/i, "").trim();
+    if (!c || c.length > text.length * 2 + 20) return null;
+    return norm(c) === norm(text) ? null : c;
+  } catch { return null; }
+}
+
+function diffTip(a, b) {
+  const A = a.replace(/[.,!?]/g, "").split(/\s+/), B = b.replace(/[.,!?]/g, "").split(/\s+/);
+  const eq = (x, y) => x.toLowerCase() === y.toLowerCase();
+  let i = 0;
+  while (i < A.length && i < B.length && eq(A[i], B[i])) i++;
+  let ja = A.length, jb = B.length;
+  while (ja > i && jb > i && eq(A[ja - 1], B[jb - 1])) { ja--; jb--; }
+  const x = A.slice(i, ja).join(" "), y = B.slice(i, jb).join(" ");
+  if (!x && !y) return "대소문자·문장부호를 다듬었어요";
+  return (x || "(없음)") + " → " + (y || "(삭제)");
+}
+
+/* ---------- 화면 ---------- */
+function addMsg(role, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "user" ? "me" : "bot");
+  render(d, text);
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+function render(el, text) {
+  el.textContent = "";
+  const lines = text.split("\n");
+  const main = [], tips = [];
+  lines.forEach((l) => (l.trim().startsWith("💡") ? tips : main).push(l));
+  el.appendChild(document.createTextNode(main.join("\n").trim()));
+  if (tips.length) {
+    const t = document.createElement("span");
+    t.className = "tip"; t.textContent = tips.join("\n");
+    el.appendChild(t);
+  }
+}
+/* ---------- 3D 아바타 (VRM) ---------- */
+let mood = "neutral", revertTimer = null, speaking = false;
+function setMood(m) {
+  clearTimeout(revertTimer);
+  mood = m;
+  [...stage.classList].filter((c) => c.startsWith("mood-")).forEach((c) => stage.classList.remove(c));
+  stage.classList.add("mood-" + m);
+}
+function revertMood(ms) {
+  clearTimeout(revertTimer);
+  revertTimer = setTimeout(() => { if (!busy) setMood("neutral"); }, ms);
+}
+function setSpeaking(on) { speaking = on; stage.classList.toggle("speaking", on); }
+window.__emma = { setMood, setSpeaking };
+
+// 내 모델(avatar.vrm)이 있으면 그것을, 없으면 공개 샘플 모델을 사용합니다.
+const VRM_URLS = [
+  "Avatar.vrm",
+  "Avatar01.vrm",
+];
+
+async function initAvatar() {
+  const box = $("avatar"), fb = $("avfallback");
+  try {
+    const THREE = await import("three");
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    const { VRMLoaderPlugin, VRMUtils } = await import("@pixiv/three-vrm");
+    const W = box.clientWidth, H = box.clientHeight;
+    const renderer = new THREE.WebGLRenderer({ canvas: $("c3d"), alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(W, H, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(24, W / H, 0.1, 20);
+    const light = new THREE.DirectionalLight(0xffffff, Math.PI);
+    light.position.set(1, 1, 1);
+    scene.add(light);
+
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    let gltf = null;
+    for (const url of VRM_URLS) {
+      try { gltf = await new Promise((res, rej) => loader.load(url, res, undefined, rej)); break; }
+      catch (e) { console.warn("VRM load failed:", url); }
+    }
+    if (!gltf) throw new Error("VRM not found");
+    const vrm = gltf.userData.vrm;
+    if (vrm.meta?.metaVersion === '0') VRMUtils.rotateVRM0(vrm);
+    vrm.scene.traverse((o) => (o.frustumCulled = false));
+    scene.add(vrm.scene);
+
+    const bone = (n) => vrm.humanoid.getNormalizedBoneNode(n);
+    // T자세 해제: 팔 내리기
+    bone("leftUpperArm").rotation.z = -1.35;  bone("rightUpperArm").rotation.z = 1.35;
+    bone("leftLowerArm").rotation.z = -0.1;   bone("rightLowerArm").rotation.z = 0.1;
+    vrm.update(0.016);
+    const hp = new THREE.Vector3();
+    bone("head").getWorldPosition(hp);
+    camera.position.set(hp.x, hp.y - 0.06, 1.75);
+    camera.lookAt(hp.x, hp.y - 0.17, 0);
+    const lookTarget = new THREE.Object3D();
+    lookTarget.position.set(hp.x, hp.y, 1.75);
+    scene.add(lookTarget);
+    if (vrm.lookAt) vrm.lookAt.target = lookTarget;
+
+    const em = vrm.expressionManager;
+    const EXP = {
+      neutral:  { relaxed: 0.15 },
+      happy:    { happy: 0.85 },
+      confused: { surprised: 0.45, sad: 0.4 },
+      thinking: { relaxed: 0.25 },
+      listen:   { relaxed: 0.3 },
+    };
+    const POSE = {  // z: 고개 기울임, x: 숙임, y: 좌우, lx/ly: 시선
+      neutral:  { z: 0,     x: 0,     y: 0,    lx: 0,     ly: 0 },
+      happy:    { z: 0.04,  x: -0.04, y: 0,    lx: 0,     ly: 0 },
+      confused: { z: -0.12, x: 0.05,  y: 0,    lx: 0.12,  ly: -0.02 },
+      thinking: { z: 0.1,   x: -0.05, y: 0.22, lx: -0.35, ly: 0.18 },
+      listen:   { z: 0.09,  x: 0.05,  y: 0,    lx: 0,     ly: 0 },
+    };
+    const EMO = ["relaxed", "happy", "surprised", "sad"];
+    const VIS = ["aa", "ih", "ou", "ee", "oh"];
+    const cur = { relaxed: 0, happy: 0, surprised: 0, sad: 0 };
+    const mouth = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 }, mouthT = { aa: 0, ih: 0, ou: 0, ee: 0, oh: 0 };
+    const pose = { z: 0, x: 0, y: 0, lx: 0, ly: 0 };
+    const lerp = (a, b, k) => a + (b - a) * Math.min(1, k);
+    let nextSyl = 0, nextBlink = 2, blinkT = -1;
+    const clock = new THREE.Clock();
+
+    function frame() {
+      requestAnimationFrame(frame);
+      if (document.hidden) { clock.getDelta(); return; }
+      const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+
+      const tgt = EXP[mood] || EXP.neutral;
+      for (const n of EMO) cur[n] = lerp(cur[n], tgt[n] || 0, dt * 6);
+
+      // 말할 때 입 모양: 음절 간격으로 모음을 바꿔 가며 여닫음
+      if (speaking) {
+        if (t >= nextSyl) {
+          nextSyl = t + 0.11 + Math.random() * 0.12;
+          for (const v of VIS) mouthT[v] = 0;
+          if (Math.random() > 0.18) mouthT[VIS[(Math.random() * VIS.length) | 0]] = 0.35 + Math.random() * 0.5;
+        }
+      } else { for (const v of VIS) mouthT[v] = 0; }
+      for (const v of VIS) mouth[v] = lerp(mouth[v], mouthT[v], dt * 18);
+
+      // 눈 깜빡임
+      let blink = 0;
+      if (blinkT < 0 && t >= nextBlink) blinkT = 0;
+      if (blinkT >= 0) {
+        blinkT += dt;
+        blink = Math.sin(Math.min(blinkT / 0.18, 1) * Math.PI);
+        if (blinkT > 0.18) { blinkT = -1; nextBlink = t + 2 + Math.random() * 3.5; }
+      }
+      for (const n of EMO) em.setValue(n, cur[n]);
+      for (const v of VIS) em.setValue(v, mouth[v]);
+      em.setValue("blink", blink);
+
+      // 머리·시선·숨쉬기
+      const P = POSE[mood] || POSE.neutral;
+      for (const k of ["z", "x", "y", "lx", "ly"]) pose[k] = lerp(pose[k], P[k], dt * 4);
+      const nod = speaking ? Math.sin(t * 5.5) * 0.015 : 0;
+      bone("head").rotation.set(pose.x + nod + Math.sin(t * 0.5) * 0.01, pose.y + Math.sin(t * 0.7) * 0.02, pose.z);
+      const neck = bone("neck"); if (neck) neck.rotation.set(0, pose.y * 0.3, pose.z * 0.3);
+      const br = Math.sin(t * 1.6) * 0.012;
+      const chest = bone("chest"), spine = bone("spine");
+      if (chest) chest.rotation.x = br;
+      if (spine) spine.rotation.x = br * 0.5;
+      lookTarget.position.set(hp.x + pose.lx, hp.y + pose.ly, 1.75);
+
+      vrm.update(dt);
+      renderer.render(scene, camera);
+    }
+    frame();
+    fb.style.display = "none";
+  } catch (e) {
+    console.error("3D avatar failed", e);
+    fb.innerHTML = '👩‍🏫<small>3D 아바타를 불러오지 못했어요</small>';
+  }
+}
+initAvatar();
+
+/* ---------- 음성 출력 ---------- */
+function speak(text) {
+  if (!voiceOn || !("speechSynthesis" in window)) return;
+  const clean = text.split("\n").filter((l) => !l.trim().startsWith("💡")).join(" ")
+    .replace(/Better:/g, "Better,").replace(/[*_#`]/g, "")
+    .replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, "").trim();
+  if (!clean) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = "en-US"; u.rate = 0.9; u.pitch = 1.1;
+  const v = speechSynthesis.getVoices().find((x) => /en[-_]US/i.test(x.lang) && /female|samantha|zira|google us/i.test(x.name))
+         || speechSynthesis.getVoices().find((x) => /en[-_]US/i.test(x.lang));
+  if (v) u.voice = v;
+  u.onstart = () => setSpeaking(true);
+  u.onend = u.onerror = () => { setSpeaking(false); statusEl.textContent = "Emma가 기다리고 있어요"; revertMood(2500); };
+  speechSynthesis.speak(u);
+}
+$("voiceToggle").onclick = () => {
+  voiceOn = !voiceOn;
+  $("voiceToggle").textContent = voiceOn ? "🔊" : "🔇";
+  if (!voiceOn) { speechSynthesis.cancel(); setSpeaking(false); }
+};
+
+/* ---------- 음성 입력 ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) {
+  $("micBtn").style.display = "";
+  const rec = new SR();
+  rec.lang = "en-US"; rec.interimResults = false;
+  let listening = false;
+  rec.onresult = (e) => { input.value = e.results[0][0].transcript; send(); };
+  rec.onend = () => { listening = false; $("micBtn").classList.remove("on"); if (!busy) setMood("neutral"); };
+  $("micBtn").onclick = () => {
+    if (listening) { rec.stop(); return; }
+    speechSynthesis.cancel(); setSpeaking(false);
+    listening = true; $("micBtn").classList.add("on"); setMood("listen");
+    statusEl.textContent = "듣고 있어요… 영어로 말해 보세요";
+    try { rec.start(); } catch {}
+  };
+}
+
+/* ---------- 대화 ---------- */
+const STARTERS = ["Hello, Emma!", "I want to practice speaking.", "Let's talk about food.", "저는 영어가 처음이에요"];
+function greet() {
+  const first = "Hi! I'm Emma. Nice to meet you! What's your name?\n💡 영어로 대답하기 어려우면 한국어로 써도 괜찮아요.";
+  addMsg("bot", first);
+  speak(first);
+  STARTERS.forEach((s) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = s;
+    b.onclick = () => { input.value = s; send(); };
+    $("chips").appendChild(b);
+  });
+}
+
+function overlap(a, b) {
+  const wa = norm(a).split(" ").filter(Boolean), wb = norm(b).split(" ").filter(Boolean);
+  const sb = new Set(wb);
+  return wa.filter((w) => sb.has(w)).length / Math.max(wa.length, wb.length, 1);
+}
+async function send() {
+  const text = input.value.trim();
+  if (!text || busy || !engine) return;
+  busy = true; sendBtn.disabled = true;
+  $("chips").innerHTML = "";
+  speechSynthesis.cancel(); setSpeaking(false);
+  input.value = "";
+  addMsg("user", text);
+  history.push({ role: "user", content: text });
+  history = history.slice(-10);
+
+  const bubble = addMsg("bot", "…");
+  setMood("thinking");
+  statusEl.textContent = "Emma가 문장을 살펴보는 중…";
+  let head = "", tip = "", full = "", nextMood = "neutral";
+  try {
+    const fixed = await correctSentence(text);
+    if (fixed) {
+      head = "Better: " + fixed + "\n";
+      tip = "\n💡 고친 부분: " + diffTip(text, fixed);
+      render(bubble, head + "…" + tip);
+      if (overlap(text, fixed) < 0.65) nextMood = "confused";
+    } else if (!/[가-힣]/.test(text)) {
+      nextMood = "happy";
+    }
+    statusEl.textContent = "Emma가 생각하는 중…";
+    const stream = await engine.chat.completions.create({
+      messages: [{ role: "system", content: systemPrompt() }, ...history],
+      stream: true, temperature: 0.5, max_tokens: 160,
+    });
+    for await (const chunk of stream) {
+      full += chunk.choices[0]?.delta?.content || "";
+      render(bubble, head + full + tip);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    if (/sorry|didn't (catch|understand|get)|did not understand|say (that|it) again|confus/i.test(full)) nextMood = "confused";
+    history.push({ role: "assistant", content: full });
+    await setMood(nextMood);
+    if (voiceOn) { statusEl.textContent = "Emma가 말하는 중…"; speak(head + full); }
+    else { statusEl.textContent = "Emma가 기다리고 있어요"; revertMood(4000); }
+  } catch (e) {
+    console.error(e);
+    bubble.textContent = "앗, 문제가 생겼어요. 다시 한 번 보내 주세요.";
+    setMood("neutral");
+    statusEl.textContent = "오류가 발생했어요";
+  } finally {
+    busy = false; sendBtn.disabled = false; input.focus();
+  }
+}
+
+sendBtn.onclick = send;
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+});
+$("level").onchange = () => { history = []; };
+if ("speechSynthesis" in window) speechSynthesis.getVoices();
+</script>
+</body>
+</html>
