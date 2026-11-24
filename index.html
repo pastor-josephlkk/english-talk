@@ -293,8 +293,8 @@ async function initAvatar() {
     vrm.update(0.016);
     const hp = new THREE.Vector3();
     bone("head").getWorldPosition(hp);
-    camera.position.set(hp.x, hp.y - 0.06, 1.75);
-    camera.lookAt(hp.x, hp.y - 0.17, 0);
+    camera.position.set(hp.x, hp.y - 0.1, 0.85);
+    camera.lookAt(hp.x, hp.y - 0.3, 0);
     const lookTarget = new THREE.Object3D();
     lookTarget.position.set(hp.x, hp.y, 1.75);
     scene.add(lookTarget);
