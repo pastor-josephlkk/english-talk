@@ -493,7 +493,7 @@ async function send() {
     else { statusEl.textContent = "Rachel이 기다리고 있어요"; revertMood(4000); }
   } catch (e) {
     console.error(e);
-    bubble.textContent = "앗, 문제가 생겼어요. 다시 한 번 보내 주세요.";
+    bubble.textContent = "오류: " + (e.message || e);
     setMood("neutral");
     statusEl.textContent = "오류가 발생했어요";
   } finally {
