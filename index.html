@@ -76,7 +76,7 @@
   </header>
 
   <div class="stage" id="stage">
-    <div class="avatar" id="avatar" aria-label="Rachel"><canvas id="c3d"></canvas><div class="avfallback" id="avfallback">👩‍🏫<small>3D 아바타 불러오는 중…</small></div></div>
+    <div class="avatar" id="avatar" aria-label="Rachel"><canvas id="c3d"></canvas><div class="avfallback" id="avfallback">👩🏻‍🏫<small>3D 아바타 불러오는 중…</small></div></div>
     <div class="status" id="status">준비 중…</div>
   </div>
 
@@ -91,7 +91,7 @@
 
   <div class="gate" id="gate">
     <div class="box">
-      <div style="font-size:42px">👩‍🏫</div>
+      <div style="font-size:42px">👩🏻‍🏫</div>
       <h2>Hi, I'm Rachel!</h2>
       <p>영어 회화 연습 선생님이에요.<br>입장 코드를 입력해 주세요.</p>
       <div class="key-wrap">
@@ -386,7 +386,7 @@ async function initAvatar() {
     fb.style.display = "none";
   } catch (e) {
     console.error("3D avatar failed", e);
-    fb.innerHTML = '👩‍🏫<small>3D 아바타를 불러오지 못했어요</small>';
+    fb.innerHTML = '👩🏻‍🏫<small>3D 아바타를 불러오지 못했어요</small>';
   }
 }
 initAvatar();
