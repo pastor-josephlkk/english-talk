@@ -109,7 +109,7 @@ const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
 const stage = $("stage"), statusEl = $("status");
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODELS = ["gemma2-9b-it", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile"];
+const GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
 let MODEL = "";
 const _k = ["gsk_HRpHU6rQd", "zyHENASVkSNW", "Gdyb3FYYgQk9", "OHvdDXQiMsaQN9eFsaa"].join("");
 let apiKey = "";
@@ -128,16 +128,20 @@ $("startBtn").onclick = async () => {
   $("startBtn").disabled = true;
   $("startBtn").textContent = "연결 중…";
   try {
-    // 작동하는 모델 자동 탐색
-    for (const m of MODELS) {
-      const res = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: m, messages: [{ role: "user", content: "hi" }], max_tokens: 3 }),
-      });
-      if (res.ok) { MODEL = m; break; }
+    // 사용 가능한 모델 목록 가져오기
+    const mres = await fetch(GROQ_MODELS_URL, {
+      headers: { "Authorization": "Bearer " + apiKey },
+    });
+    if (!mres.ok) {
+      const err = await mres.json().catch(() => ({}));
+      throw new Error(err.error?.message || "모델 목록 오류 " + mres.status);
     }
-    if (!MODEL) throw new Error("사용 가능한 모델이 없어요.");
+    const mdata = await mres.json();
+    // 채팅 가능한 모델 중 가장 가벼운 것 선택
+    const all = mdata.data.map((m) => m.id);
+    const PREFER = ["gemma2-9b-it", "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile"];
+    MODEL = PREFER.find((m) => all.includes(m)) || all.find((id) => /llama|gemma|mistral|qwen/i.test(id));
+    if (!MODEL) throw new Error("사용 가능한 모델 없음. 목록: " + all.join(", "));
     $("gate").style.display = "none";
     statusEl.textContent = "Rachel이 기다리고 있어요";
     sendBtn.disabled = false;
