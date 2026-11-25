@@ -109,7 +109,7 @@ const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
 const stage = $("stage"), statusEl = $("status");
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
+const MODELS = ["gemma2-9b-it", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile"];
 let MODEL = "";
 const _k = ["gsk_HRpHU6rQd", "zyHENASVkSNW", "Gdyb3FYYgQk9", "OHvdDXQiMsaQN9eFsaa"].join("");
 let apiKey = "";
@@ -118,14 +118,6 @@ let voiceOn = true;
 let busy = false;
 
 /* ---------- 시작 화면 ---------- */
-const saved = localStorage.getItem("groq_api_key");
-if (saved) { $("apiKeyInput").value = saved; $("rememberKey").checked = true; }
-
-$("eyeBtn").onclick = () => {
-  const inp = $("apiKeyInput");
-  inp.type = inp.type === "password" ? "text" : "password";
-};
-
 $("startBtn").onclick = async () => {
   if ($("pwInput").value.trim() !== "9191") {
     $("warn").textContent = "입장 코드가 올바르지 않아요.";
@@ -136,15 +128,15 @@ $("startBtn").onclick = async () => {
   $("startBtn").disabled = true;
   $("startBtn").textContent = "연결 중…";
   try {
-    const mres = await fetch(GROQ_MODELS_URL, {
-      headers: { "Authorization": "Bearer " + apiKey },
-    });
-    if (!mres.ok) throw new Error((await mres.json()).error?.message || mres.status);
-    const mdata = await mres.json();
-    const DENY = new Set(["llama3-8b-8192", "llama3-70b-8192", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]);
-    const PREFER = ["gemma2-9b-it", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.2-3b-preview", "llama-3.2-1b-preview"];
-    const available = mdata.data.map((m) => m.id).filter((id) => !DENY.has(id));
-    MODEL = PREFER.find((m) => available.includes(m)) || available[0];
+    // 작동하는 모델 자동 탐색
+    for (const m of MODELS) {
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: m, messages: [{ role: "user", content: "hi" }], max_tokens: 3 }),
+      });
+      if (res.ok) { MODEL = m; break; }
+    }
     if (!MODEL) throw new Error("사용 가능한 모델이 없어요.");
     $("gate").style.display = "none";
     statusEl.textContent = "Rachel이 기다리고 있어요";
