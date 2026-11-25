@@ -93,14 +93,10 @@
     <div class="box">
       <div style="font-size:42px">👩‍🏫</div>
       <h2>Hi, I'm Rachel!</h2>
-      <p>Groq API 키를 입력하면 스마트폰 포함<br>모든 기기에서 바로 대화할 수 있어요.</p>
+      <p>영어 회화 연습 선생님이에요.<br>입장 코드를 입력해 주세요.</p>
       <div class="key-wrap">
-        <input type="password" id="apiKeyInput" placeholder="Groq API 키 (gsk_...)">
-        <button id="eyeBtn" title="보기/숨기기">👁</button>
+        <input type="password" id="pwInput" placeholder="입장 코드">
       </div>
-      <label class="remember">
-        <input type="checkbox" id="rememberKey"> 이 기기에 키 저장하기
-      </label>
       <button class="start" id="startBtn">시작하기</button>
       <div class="warn" id="warn"></div>
     </div>
@@ -115,6 +111,7 @@ const stage = $("stage"), statusEl = $("status");
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models";
 let MODEL = "";
+const _k = ["gsk_HRpHU6rQd", "zyHENASVkSNW", "Gdyb3FYYgQk9", "OHvdDXQiMsaQN9eFsaa"].join("");
 let apiKey = "";
 let history = [];
 let voiceOn = true;
@@ -130,18 +127,17 @@ $("eyeBtn").onclick = () => {
 };
 
 $("startBtn").onclick = async () => {
-  const key = $("apiKeyInput").value.trim();
-  if (!key.startsWith("gsk_")) {
-    $("warn").textContent = "올바른 Groq API 키를 입력해 주세요 (gsk_로 시작).";
+  if ($("pwInput").value.trim() !== "9191") {
+    $("warn").textContent = "입장 코드가 올바르지 않아요.";
     return;
   }
   $("warn").textContent = "";
+  apiKey = _k;
   $("startBtn").disabled = true;
   $("startBtn").textContent = "연결 중…";
   try {
-    // 사용 가능한 모델 목록 가져오기
     const mres = await fetch(GROQ_MODELS_URL, {
-      headers: { "Authorization": "Bearer " + key },
+      headers: { "Authorization": "Bearer " + apiKey },
     });
     if (!mres.ok) throw new Error((await mres.json()).error?.message || mres.status);
     const mdata = await mres.json();
@@ -150,15 +146,12 @@ $("startBtn").onclick = async () => {
     const available = mdata.data.map((m) => m.id).filter((id) => !DENY.has(id));
     MODEL = PREFER.find((m) => available.includes(m)) || available[0];
     if (!MODEL) throw new Error("사용 가능한 모델이 없어요.");
-    apiKey = key;
-    if ($("rememberKey").checked) localStorage.setItem("groq_api_key", key);
-    else localStorage.removeItem("groq_api_key");
     $("gate").style.display = "none";
     statusEl.textContent = "Rachel이 기다리고 있어요";
     sendBtn.disabled = false;
     greet();
   } catch (e) {
-    $("warn").textContent = "키 오류: " + (e.message || e);
+    $("warn").textContent = "오류: " + (e.message || e);
     $("startBtn").disabled = false;
     $("startBtn").textContent = "시작하기";
   }
@@ -509,6 +502,7 @@ async function send() {
   }
 }
 
+$("pwInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("startBtn").click(); });
 sendBtn.onclick = send;
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
